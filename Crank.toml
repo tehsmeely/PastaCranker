@@ -1,0 +1,27 @@
+[[target]]
+name = "PastaCranker"
+assets = [
+    "res/crank/crank0.png",
+    "res/crank/crank1.png",
+    "res/crank/crank2.png",
+    "res/crank/crank3.png",
+    "res/crank/crank4.png",
+    "res/crank/crank5.png",
+    "res/crank/crank6.png",
+    "res/crank/crank7.png",
+    "res/crank/crank8.png",
+    "res/crank/crank9.png",
+    "res/crank/crank10.png",
+    "res/crank/crank11.png",
+    "res/crank/crank12.png",
+    "res/crank/crank13.png",
+    "res/machine_body.png",
+    "res/roller_dough/roller_dough0.png",
+    "res/roller_dough/roller_dough1.png",
+    "res/roller_dough/roller_dough2.png",
+    "res/roller_dough/roller_dough3.png",
+    "res/roller_dough/roller_dough_bottom0.png",
+    "res/roller_dough/roller_dough_bottom1.png",
+    "res/roller_dough/roller_dough_bottom2.png",
+    "res/roller_dough/roller_dough_bottom3.png",
+]
