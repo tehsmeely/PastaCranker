@@ -2,8 +2,8 @@
 
 extern crate alloc;
 
+use alloc::format;
 use alloc::vec::Vec;
-use alloc::{format};
 use crankstart::graphics::Bitmap;
 use crankstart::sprite::{Sprite, SpriteManager};
 use crankstart_sys::LCDBitmapFlip;
@@ -80,7 +80,7 @@ impl IncrSprite {
         sprite
             .set_image(images[0].clone(), LCDBitmapFlip::kBitmapUnflipped)
             .unwrap();
-        sprite.set_tag(SpriteType::MachineCrank as u8);
+        sprite.set_tag(SpriteType::MachineCrank as u8).unwrap();
         let (x, y) = pos;
         sprite.move_to(x, y).unwrap();
         sprite_manager.add_sprite(&sprite).unwrap();
@@ -152,7 +152,7 @@ impl MachineCrank {
         sprite
             .set_image(images[0].clone(), LCDBitmapFlip::kBitmapUnflipped)
             .unwrap();
-        sprite.set_tag(SpriteType::MachineCrank as u8);
+        sprite.set_tag(SpriteType::MachineCrank as u8).unwrap();
         let (x, y) = pos;
         sprite.move_to(x, y).unwrap();
         sprite_manager.add_sprite(&sprite).unwrap();
@@ -206,7 +206,7 @@ impl PastaMachineState {
                 .set_image(image, LCDBitmapFlip::kBitmapUnflipped)
                 .unwrap();
             sprite.move_to(x, y).unwrap();
-            sprite.set_tag(SpriteType::MachineBody as u8);
+            sprite.set_tag(SpriteType::MachineBody as u8).unwrap();
             sprite_manager.add_sprite(&sprite).unwrap();
             sprite
         };
@@ -250,21 +250,25 @@ impl State {
 }
 
 impl Game for State {
+    fn update_sprite(
+        &mut self,
+        sprite: &mut Sprite,
+        _playdate: &mut Playdate,
+    ) -> Result<(), Error> {
+        let sprite_type: SpriteType = sprite.get_tag()?.into();
+        match sprite_type {
+            SpriteType::MachineCrank => self.pasta_machine.update_crank(),
+            SpriteType::MachineBody => self.pasta_machine.update(),
+        }
+        Ok(())
+    }
+
     fn update(&mut self, _playdate: &mut Playdate) -> Result<(), Error> {
         let graphics = Graphics::get();
         graphics.clear(LCDColor::Solid(LCDSolidColor::kColorWhite))?;
 
         System::get().draw_fps(0, 0)?;
 
-        Ok(())
-    }
-
-    fn update_sprite(&mut self, sprite: &mut Sprite, _playdate: &mut Playdate) -> Result<(), Error> {
-        let sprite_type: SpriteType = sprite.get_tag()?.into();
-        match sprite_type {
-            SpriteType::MachineCrank => self.pasta_machine.update_crank(),
-            SpriteType::MachineBody => self.pasta_machine.update(),
-        }
         Ok(())
     }
 }
