@@ -3,7 +3,7 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
-use alloc::{format, vec};
+use alloc::{format};
 use crankstart::graphics::Bitmap;
 use crankstart::sprite::{Sprite, SpriteManager};
 use crankstart_sys::LCDBitmapFlip;
@@ -12,13 +12,10 @@ use {
     anyhow::Error,
     crankstart::{
         crankstart_game,
-        geometry::{ScreenPoint, ScreenVector},
         graphics::{Graphics, LCDColor, LCDSolidColor},
         system::System,
         Game, Playdate,
     },
-    crankstart_sys::{LCD_COLUMNS, LCD_ROWS},
-    euclid::{point2, vec2},
 };
 
 mod helpers {
@@ -128,7 +125,7 @@ impl CrankTracker {
         self.crank_progress += crank_diff;
 
         if self.crank_progress > self.progress_per_tick {
-            self.crank_progress = self.crank_progress - self.progress_per_tick;
+            self.crank_progress -= self.progress_per_tick;
             true
         } else {
             false
@@ -262,7 +259,7 @@ impl Game for State {
         Ok(())
     }
 
-    fn update_sprite(&mut self, sprite: &mut Sprite, playdate: &mut Playdate) -> Result<(), Error> {
+    fn update_sprite(&mut self, sprite: &mut Sprite, _playdate: &mut Playdate) -> Result<(), Error> {
         let sprite_type: SpriteType = sprite.get_tag()?.into();
         match sprite_type {
             SpriteType::MachineCrank => self.pasta_machine.update_crank(),
