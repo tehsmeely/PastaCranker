@@ -23,6 +23,7 @@ mod helpers;
 mod machine;
 
 use crate::bottom_bar::BottomBar;
+use crate::core_elements::{CoreParameters, CoreState};
 use crate::fill_bar::FillBar;
 use crate::flour_pile::FlourPile;
 use machine::PastaMachineState;
@@ -57,6 +58,8 @@ impl From<u8> for SpriteType {
 }
 
 struct State {
+    parameters: CoreParameters,
+    state: CoreState,
     pasta_machine: PastaMachineState,
     bottom_bar: BottomBar,
     flour_pile: FlourPile,
@@ -66,6 +69,8 @@ impl State {
     pub fn new(_playdate: &Playdate) -> Result<Box<Self>, Error> {
         crankstart::display::Display::get().set_refresh_rate(20.0)?;
         Ok(Box::new(Self {
+            parameters: CoreParameters::default(),
+            state: CoreState::default(),
             pasta_machine: PastaMachineState::new(),
             bottom_bar: BottomBar::new(),
             flour_pile: FlourPile::new((80.0, 80.0)),

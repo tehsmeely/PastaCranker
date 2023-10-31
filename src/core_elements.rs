@@ -8,6 +8,37 @@ use crankstart::system;
 use crankstart_sys::{LCDBitmapFlip, LCDSolidColor};
 use euclid::Size2D;
 
+/// Core parameters that may be changed/upgraded and impact how other things behave
+pub struct CoreParameters {
+    knead_tick_size: f32,
+}
+
+impl Default for CoreParameters {
+    fn default() -> Self {
+        Self {
+            knead_tick_size: 0.02,
+        }
+    }
+}
+
+/// Core state of the game, including things that change/increase over time
+pub struct CoreState {
+    // TODO: Quantities here will need to be able to grow larger than usize
+    money: usize,
+    diamonds: usize,
+    dough_balls: usize,
+}
+
+impl Default for CoreState {
+    fn default() -> Self {
+        Self {
+            money: 0,
+            diamonds: 0,
+            dough_balls: 0,
+        }
+    }
+}
+
 pub struct IncrSprite {
     images: Vec<Bitmap>,
     sprite: Sprite,
