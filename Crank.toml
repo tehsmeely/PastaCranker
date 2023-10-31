@@ -24,4 +24,12 @@ assets = [
     "res/roller_dough/roller_dough_bottom1.png",
     "res/roller_dough/roller_dough_bottom2.png",
     "res/roller_dough/roller_dough_bottom3.png",
+    "res/doughball.png",
+    "res/bottom_bar.png",
+    "res/menu_indicator_left.png",
+    "res/menu_indicator_right.png",
+    "res/bar_background.png",
+    "res/flour_pile.png",
+    "res/a_button.png",
+    "res/a_button_pressed.png",
 ]
