@@ -19,13 +19,16 @@ mod core_elements;
 mod dough_store;
 mod fill_bar;
 mod flour_pile;
+mod game_value;
 mod helpers;
 mod machine;
+mod menu;
 
 use crate::bottom_bar::BottomBar;
 use crate::core_elements::{CoreParameters, CoreState};
 use crate::fill_bar::FillBar;
 use crate::flour_pile::FlourPile;
+use crate::menu::Menu;
 use machine::PastaMachineState;
 
 #[repr(u8)]
@@ -39,6 +42,7 @@ enum SpriteType {
     FillBar,
     FlourPile,
     AButtonIndicator,
+    Menu,
 }
 
 impl From<u8> for SpriteType {
@@ -52,6 +56,7 @@ impl From<u8> for SpriteType {
             5 => Self::FillBar,
             6 => Self::FlourPile,
             7 => Self::AButtonIndicator,
+            8 => Self::Menu,
             _ => panic!("Unknown sprite type {}", val),
         }
     }
@@ -63,6 +68,7 @@ struct State {
     pasta_machine: PastaMachineState,
     bottom_bar: BottomBar,
     flour_pile: FlourPile,
+    menu: Menu,
 }
 
 impl State {
@@ -74,6 +80,7 @@ impl State {
             pasta_machine: PastaMachineState::new(),
             bottom_bar: BottomBar::new(),
             flour_pile: FlourPile::new((80.0, 80.0)),
+            menu: Menu::new(),
         }))
     }
 }
@@ -86,24 +93,18 @@ impl Game for State {
     ) -> Result<(), Error> {
         let sprite_type: SpriteType = sprite.get_tag()?.into();
         match sprite_type {
-            SpriteType::MachineCrank => self.pasta_machine.update_crank(),
+            SpriteType::MachineCrank => self
+                .pasta_machine
+                .update_crank(&mut self.state, &self.parameters),
             SpriteType::MachineBody => self.pasta_machine.update(&mut self.flour_pile),
             SpriteType::FillBar => self.flour_pile.fill_bar_update(),
-            SpriteType::FlourPile => self.flour_pile.update(),
+            SpriteType::FlourPile => self.flour_pile.update(&self.parameters),
+            SpriteType::BottomBar => self.bottom_bar.update(&self.state, &mut self.menu),
+            SpriteType::Menu => self.menu.update(),
             SpriteType::MachineDough
             | SpriteType::DoughStoreDough
-            | SpriteType::BottomBar
             | SpriteType::AButtonIndicator => {}
         }
-        Ok(())
-    }
-
-    fn update(&mut self, _playdate: &mut Playdate) -> Result<(), Error> {
-        let graphics = Graphics::get();
-        graphics.clear(LCDColor::Solid(LCDSolidColor::kColorWhite))?;
-
-        System::get().draw_fps(0, 0)?;
-
         Ok(())
     }
 
@@ -120,6 +121,15 @@ impl Game for State {
             SpriteType::FillBar => self.flour_pile.draw_fill_bar()?,
             _ => {}
         }
+        Ok(())
+    }
+
+    fn update(&mut self, _playdate: &mut Playdate) -> Result<(), Error> {
+        let graphics = Graphics::get();
+        graphics.clear(LCDColor::Solid(LCDSolidColor::kColorWhite))?;
+
+        System::get().draw_fps(0, 0)?;
+
         Ok(())
     }
 }

@@ -1,22 +1,27 @@
 use crate::SpriteType;
+use alloc::boxed::Box;
 use alloc::format;
+use alloc::string::String;
 use alloc::vec::Vec;
+use core::ops::Not;
 use crankstart::geometry::ScreenSize;
 use crankstart::graphics::{Bitmap, Graphics, LCDColor};
-use crankstart::sprite::{Sprite, SpriteManager};
+use crankstart::sprite::{Sprite, SpriteManager, TextSprite};
 use crankstart::system;
 use crankstart_sys::{LCDBitmapFlip, LCDSolidColor};
 use euclid::Size2D;
 
 /// Core parameters that may be changed/upgraded and impact how other things behave
 pub struct CoreParameters {
-    knead_tick_size: f32,
+    pub(crate) knead_tick_size: f32,
+    pub(crate) pasta_price: usize,
 }
 
 impl Default for CoreParameters {
     fn default() -> Self {
         Self {
             knead_tick_size: 0.02,
+            pasta_price: 5,
         }
     }
 }
@@ -24,9 +29,9 @@ impl Default for CoreParameters {
 /// Core state of the game, including things that change/increase over time
 pub struct CoreState {
     // TODO: Quantities here will need to be able to grow larger than usize
-    money: usize,
-    diamonds: usize,
-    dough_balls: usize,
+    pub(crate) money: usize,
+    pub(crate) diamonds: usize,
+    pub(crate) dough_balls: usize,
 }
 
 impl Default for CoreState {
@@ -36,6 +41,16 @@ impl Default for CoreState {
             diamonds: 0,
             dough_balls: 0,
         }
+    }
+}
+
+impl CoreState {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn add_money(&mut self, amount: usize) {
+        self.money += amount;
     }
 }
 
@@ -124,6 +139,31 @@ impl IncrSprite {
     }
 }
 
+pub struct TextSpriteWithValue<V> {
+    pub sprite: TextSprite,
+    value: V,
+    value_to_string: Box<dyn (Fn(&V) -> String)>,
+}
+
+impl<V: PartialEq> TextSpriteWithValue<V> {
+    pub fn new(sprite: TextSprite, value: V, value_to_string: Box<dyn (Fn(&V) -> String)>) -> Self {
+        Self {
+            sprite,
+            value,
+            value_to_string,
+        }
+    }
+
+    pub fn update_value(&mut self, value: V) {
+        if value != self.value {
+            self.value = value;
+            self.sprite
+                .update_text(&(self.value_to_string)(&self.value))
+                .unwrap();
+        }
+    }
+}
+
 pub struct CountStore {
     /// Total count seen
     count: usize,
@@ -154,5 +194,22 @@ impl CountStore {
     pub fn add(&mut self, count: usize) {
         self.count += count;
         self.dirty_count += count;
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum VisibilityState {
+    Visible,
+    Hidden,
+}
+
+impl Not for VisibilityState {
+    type Output = Self;
+
+    fn not(self) -> Self::Output {
+        match self {
+            Self::Visible => Self::Hidden,
+            Self::Hidden => Self::Visible,
+        }
     }
 }

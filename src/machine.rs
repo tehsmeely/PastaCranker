@@ -1,7 +1,7 @@
 use crate::core_elements::{CountStore, IncrSprite};
 use crate::dough_store::DoughStore;
 use crate::flour_pile::FlourPile;
-use crate::{dough_store, helpers, SpriteType};
+use crate::{CoreParameters, CoreState, dough_store, helpers, SpriteType};
 use alloc::format;
 use alloc::vec::Vec;
 use crankstart::graphics::{Bitmap, Graphics};
@@ -99,7 +99,6 @@ pub struct PastaMachineState {
     top_dough: IncrSprite,
     bottom_dough: IncrSprite,
     dough_store: DoughStore,
-    completed_pasta: CountStore,
 }
 
 impl PastaMachineState {
@@ -135,18 +134,15 @@ impl PastaMachineState {
         let mut dough_store = DoughStore::new((280.0, 160.0));
         dough_store.set_dough_count(3);
 
-        let completed_pasta = CountStore::new();
-
         Self {
             crank,
             body_sprite,
             top_dough,
             bottom_dough,
             dough_store,
-            completed_pasta,
         }
     }
-    pub fn update_crank(&mut self) {
+    pub fn update_crank(&mut self, state: &mut CoreState, parameters: &CoreParameters) {
         let crank_ticked = self.crank.update();
         if crank_ticked {
             let top_dough_pre = self.top_dough.get_idx();
@@ -157,7 +153,7 @@ impl PastaMachineState {
             // TODO: Emit something when dough is completed. i.e. when top_dough transitions from
             // 3 to None
             if top_dough_pre == Some(3) && self.top_dough.get_idx().is_none() {
-                self.completed_pasta.add(1);
+                state.add_money(parameters.pasta_price);
             }
 
             if !self.top_dough.is_active() {

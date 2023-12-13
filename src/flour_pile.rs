@@ -1,6 +1,6 @@
 use crate::fill_bar::FillBar;
 use crate::helpers::load_sprite_at;
-use crate::SpriteType;
+use crate::{CoreParameters, SpriteType};
 use anyhow::Error;
 use crankstart::graphics::{Bitmap, Graphics};
 use crankstart::sprite::Sprite;
@@ -34,20 +34,21 @@ impl FlourPile {
         self.fill_bar.update();
     }
 
-    fn tick(&mut self) {
+    fn tick(&mut self, tick_size: f32) {
         System::log_to_console("FlourPile tick");
-        self.fill_bar.incr_fill_pct(0.01);
+        self.fill_bar.incr_fill_pct(tick_size);
         self.fill_bar.update();
     }
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self, parameters: &CoreParameters) {
+        // TODO: Disable input if menu is open ...
         let (_, pressed, released) = System::get().get_button_state().unwrap();
         if (pressed & PDButtons::kButtonA).0 != 0 {
             self.button_indicator.set_pressed();
-            self.tick();
+            self.tick(parameters.knead_tick_size);
         } else if (released & PDButtons::kButtonA).0 != 0 {
             self.button_indicator.set_unpressed();
-            self.tick();
+            self.tick(parameters.knead_tick_size);
         }
     }
     pub fn draw_fill_bar(&self) -> Result<(), Error> {
