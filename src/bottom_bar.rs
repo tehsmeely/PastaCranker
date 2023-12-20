@@ -1,4 +1,6 @@
 use crate::core_elements::{TextSpriteWithValue, VisibilityState};
+use crate::game_value::{GameUInt, GameValue};
+use crate::helpers::load_sprite_at;
 use crate::{CoreState, Menu, SpriteType};
 use alloc::boxed::Box;
 use alloc::format;
@@ -11,9 +13,11 @@ use crankstart_sys::{LCDBitmapFlip, LCDSolidColor, PDButtons};
 
 pub struct BottomBar {
     background: Sprite,
-    money: TextSpriteWithValue<usize>,
-    diamonds: TextSpriteWithValue<usize>,
+    money: TextSpriteWithValue<GameUInt>,
+    diamonds: TextSpriteWithValue<GameUInt>,
     menu_indicator: MenuIndicator,
+    money_icon: Sprite,
+    diamond_icon: Sprite,
 }
 
 impl BottomBar {
@@ -29,27 +33,41 @@ impl BottomBar {
             )
         };
         background.set_z_index(z);
+        let mut money_icon = load_sprite_at("res/coin", 290.0, y, None);
+        money_icon.set_z_index(z + 1).unwrap();
         let mut money = TextSprite::new("", LCDColor::Solid(LCDSolidColor::kColorWhite)).unwrap();
-        money.get_sprite_mut().move_to(320.0, y).unwrap();
-        money.get_sprite_mut().set_z_index(z + 1);
-        let money = TextSpriteWithValue::new(money, 0, Box::new(|x| format!("£{}", x)));
+        money.get_sprite_mut().move_to(335.0, y).unwrap();
+        money.get_sprite_mut().set_z_index(z + 1).unwrap();
+        let money = TextSpriteWithValue::new(
+            money,
+            GameUInt::default(),
+            Box::new(GameUInt::to_string_hum),
+        );
+        let mut diamond_icon = load_sprite_at("res/diamond", 75.0, y, None);
+        diamond_icon.set_z_index(z + 1).unwrap();
         let mut diamonds =
             TextSprite::new("", LCDColor::Solid(LCDSolidColor::kColorWhite)).unwrap();
-        diamonds.get_sprite_mut().move_to(100.0, y).unwrap();
-        diamonds.get_sprite_mut().set_z_index(z + 1);
-        let diamonds = TextSpriteWithValue::new(diamonds, 0, Box::new(|x| format!("{}D", x)));
+        diamonds.get_sprite_mut().move_to(120.0, y).unwrap();
+        diamonds.get_sprite_mut().set_z_index(z + 1).unwrap();
+        let diamonds = TextSpriteWithValue::new(
+            diamonds,
+            GameUInt::default(),
+            Box::new(GameUInt::to_string_hum),
+        );
         let menu_indicator = MenuIndicator::new(30.0, y);
         Self {
             background,
             money,
             diamonds,
             menu_indicator,
+            money_icon,
+            diamond_icon,
         }
     }
 
     pub fn update(&mut self, state: &CoreState, menu: &mut Menu) {
-        self.money.update_value(state.money);
-        self.diamonds.update_value(state.diamonds);
+        self.money.update_value(&state.money);
+        self.diamonds.update_value(&state.diamonds);
 
         let (_, pressed, _released) = System::get().get_button_state().unwrap();
         if (pressed & self.menu_indicator.get_toggle_button()).0 != 0 {

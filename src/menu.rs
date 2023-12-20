@@ -1,10 +1,11 @@
-use crate::core_elements::VisibilityState;
+use crate::core_elements::{CoreParameters, CoreState, VisibilityState};
 use crate::game_value::{GameUInt, GameValue};
-use crate::SpriteType;
+use crate::{SpriteType, State};
 use alloc::boxed::Box;
 use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
+use core::ops::{RemAssign, SubAssign};
 use crankstart::graphics::{Bitmap, Graphics};
 use crankstart::sprite::{Sprite, TextSprite};
 use crankstart::system::System;
@@ -20,7 +21,7 @@ pub struct Menu {
 }
 
 impl Menu {
-    const ITEM_SPACING: f32 = 45.0;
+    const ITEM_SPACING: f32 = 50.0;
     const ITEM_MAX_DISPLAY_Y: f32 = 190.0;
     pub fn new() -> Self {
         let background = crate::helpers::load_sprite_at(
@@ -95,7 +96,7 @@ impl Menu {
             }
         }
     }
-    fn update_internal(&mut self) {
+    fn update_internal(&mut self, state: &mut CoreState) {
         let (_, pressed, released) = System::get().get_button_state().unwrap();
         if (pressed & PDButtons::kButtonUp).0 != 0 {
             self.change_selected_item(-1);
@@ -106,7 +107,12 @@ impl Menu {
         let debug_cash = GameUInt::from(1000000000000000usize);
 
         if (pressed & PDButtons::kButtonA).0 != 0 {
-            if self.menu_items[self.selected_item_index].press_and_trigger(&debug_cash) {
+            System::log_to_console("Pressed A");
+            if self.menu_items[self.selected_item_index].press_and_trigger(&mut state.money) {
+                System::log_to_console(&format!(
+                    "Pressed A, cost: {}",
+                    self.menu_items[self.selected_item_index].data.cost_str()
+                ));
                 self.menu_items[self.selected_item_index].set_pressed(true, true);
                 self.pressed_item_index = self.selected_item_index;
             }
@@ -115,12 +121,12 @@ impl Menu {
                 .set_pressed(false, self.pressed_item_index == self.selected_item_index);
         }
     }
-    pub fn update(&mut self) {
+    pub fn update(&mut self, _parameters: &mut CoreParameters, state: &mut CoreState) {
         // Only process key presses if enabled
         match self.state {
             VisibilityState::Hidden => {}
             VisibilityState::Visible => {
-                self.update_internal();
+                self.update_internal(state);
             }
         }
     }
@@ -174,7 +180,7 @@ impl MenuItem {
             crate::helpers::load_sprite_at("res/menu_item_background0", -95.0, y, None);
         sprite.set_z_index(10).unwrap();
         let mut text = TextSprite::new(
-            data.description.clone(),
+            "",
             crankstart::graphics::LCDColor::Solid(crankstart_sys::LCDSolidColor::kColorWhite),
         )
         .unwrap();
@@ -212,6 +218,8 @@ impl MenuItem {
     }
 
     fn update_text(&mut self) {
+        let descr_str = format!("{}: {}", self.data.description, self.data.count);
+        self.text.update_text(descr_str).unwrap();
         let cost_str = format!("Cost: {}", self.data.cost_str());
         self.cost_text.update_text(cost_str).unwrap();
     }
@@ -231,12 +239,24 @@ impl MenuItem {
         }
     }
 
-    pub fn press_and_trigger(&mut self, available_cash: &GameUInt) -> bool {
-        if self.data.cost() > *available_cash {
+    pub fn press_and_trigger(&mut self, available_cash: &mut GameUInt) -> bool {
+        System::log_to_console(&format!(
+            "Trying to buy: cost: {}, with cash {}",
+            self.data.cost().to_string_hum(),
+            available_cash.to_string_hum()
+        ));
+        let cost = self.data.cost();
+        if cost < *available_cash {
+            System::log_to_console("Rich enough, buying");
             self.data.count += 1;
+            System::log_to_console(&format!("Available cash: {:?}", available_cash));
+            System::log_to_console(&format!("Charging: {:?}", cost));
+            available_cash.sub_assign(cost.take());
+            System::log_to_console(&format!("Available cash after: {:?}", available_cash));
             self.update_text();
             true
         } else {
+            System::log_to_console("Not enough cash");
             false
         }
     }

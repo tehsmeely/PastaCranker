@@ -1,9 +1,10 @@
+use crate::game_value::GameUInt;
 use crate::SpriteType;
 use alloc::boxed::Box;
 use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
-use core::ops::Not;
+use core::ops::{Add, AddAssign, Not};
 use crankstart::geometry::ScreenSize;
 use crankstart::graphics::{Bitmap, Graphics, LCDColor};
 use crankstart::sprite::{Sprite, SpriteManager, TextSprite};
@@ -29,16 +30,16 @@ impl Default for CoreParameters {
 /// Core state of the game, including things that change/increase over time
 pub struct CoreState {
     // TODO: Quantities here will need to be able to grow larger than usize
-    pub(crate) money: usize,
-    pub(crate) diamonds: usize,
+    pub(crate) money: GameUInt,
+    pub(crate) diamonds: GameUInt,
     pub(crate) dough_balls: usize,
 }
 
 impl Default for CoreState {
     fn default() -> Self {
         Self {
-            money: 0,
-            diamonds: 0,
+            money: GameUInt::from(15000000usize),
+            diamonds: GameUInt::from(42usize),
             dough_balls: 0,
         }
     }
@@ -145,7 +146,7 @@ pub struct TextSpriteWithValue<V> {
     value_to_string: Box<dyn (Fn(&V) -> String)>,
 }
 
-impl<V: PartialEq> TextSpriteWithValue<V> {
+impl<V: PartialEq + Clone> TextSpriteWithValue<V> {
     pub fn new(sprite: TextSprite, value: V, value_to_string: Box<dyn (Fn(&V) -> String)>) -> Self {
         Self {
             sprite,
@@ -154,9 +155,9 @@ impl<V: PartialEq> TextSpriteWithValue<V> {
         }
     }
 
-    pub fn update_value(&mut self, value: V) {
-        if value != self.value {
-            self.value = value;
+    pub fn update_value(&mut self, value: &V) {
+        if *value != self.value {
+            self.value = value.clone();
             self.sprite
                 .update_text(&(self.value_to_string)(&self.value))
                 .unwrap();

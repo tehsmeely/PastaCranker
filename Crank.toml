@@ -36,4 +36,6 @@ assets = [
     "res/menu_item_background0.png",
     "res/menu_item_background1.png",
     "res/menu_item_background2.png",
+    "res/diamond.png",
+    "res/coin.png",
 ]

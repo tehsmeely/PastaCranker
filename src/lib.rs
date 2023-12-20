@@ -1,5 +1,4 @@
 #![no_std]
-
 extern crate alloc;
 
 use crankstart::sprite::Sprite;
@@ -28,6 +27,7 @@ use crate::bottom_bar::BottomBar;
 use crate::core_elements::{CoreParameters, CoreState};
 use crate::fill_bar::FillBar;
 use crate::flour_pile::FlourPile;
+use crate::game_value::GameUInt;
 use crate::menu::Menu;
 use machine::PastaMachineState;
 
@@ -100,7 +100,7 @@ impl Game for State {
             SpriteType::FillBar => self.flour_pile.fill_bar_update(),
             SpriteType::FlourPile => self.flour_pile.update(&self.parameters),
             SpriteType::BottomBar => self.bottom_bar.update(&self.state, &mut self.menu),
-            SpriteType::Menu => self.menu.update(),
+            SpriteType::Menu => self.menu.update(&mut self.parameters, &mut self.state),
             SpriteType::MachineDough
             | SpriteType::DoughStoreDough
             | SpriteType::AButtonIndicator => {}
