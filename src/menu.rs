@@ -251,7 +251,7 @@ impl MenuItem {
             self.data.count += 1;
             System::log_to_console(&format!("Available cash: {:?}", available_cash));
             System::log_to_console(&format!("Charging: {:?}", cost));
-            available_cash.sub_assign(cost.take());
+            available_cash.sub_assign(cost);
             System::log_to_console(&format!("Available cash after: {:?}", available_cash));
             self.update_text();
             true

@@ -1,7 +1,8 @@
 use crate::core_elements::{CountStore, IncrSprite};
 use crate::dough_store::DoughStore;
 use crate::flour_pile::FlourPile;
-use crate::{CoreParameters, CoreState, dough_store, helpers, SpriteType};
+use crate::game_value::{GameUInt, GAME_UINT_ONE, GAME_UINT_ZERO};
+use crate::{dough_store, helpers, CoreParameters, CoreState, SpriteType};
 use alloc::format;
 use alloc::vec::Vec;
 use crankstart::graphics::{Bitmap, Graphics};
@@ -132,8 +133,6 @@ impl PastaMachineState {
             SpriteType::MachineDough,
         );
         let mut dough_store = DoughStore::new((280.0, 160.0));
-        dough_store.set_dough_count(3);
-
         Self {
             crank,
             body_sprite,
@@ -158,16 +157,17 @@ impl PastaMachineState {
 
             if !self.top_dough.is_active() {
                 // try and replenish
-                if self.dough_store.take_one() {
+                if state.dough_balls > GAME_UINT_ZERO {
+                    state.dough_balls -= GAME_UINT_ONE;
                     self.top_dough.reset();
                     self.bottom_dough.reset();
                 }
             }
         }
     }
-    pub fn update(&mut self, pile: &mut FlourPile) {
+    pub fn update(&mut self, state: &mut CoreState, pile: &mut FlourPile) {
         if pile.is_full() {
-            self.dough_store.add_one();
+            state.dough_balls += GAME_UINT_ONE;
             pile.reset();
         }
     }

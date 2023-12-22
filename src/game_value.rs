@@ -1,7 +1,7 @@
 use alloc::format;
 use alloc::string::String;
 use core::fmt::{Display, Formatter};
-use core::ops::{AddAssign, Deref, DerefMut};
+use core::ops::{AddAssign, Deref, DerefMut, SubAssign};
 use crankstart::Game;
 use num_bigint::BigUint;
 
@@ -47,6 +47,12 @@ impl AddAssign<GameUInt> for GameUInt {
         self.value += rhs.value;
     }
 }
+
+impl SubAssign<GameUInt> for GameUInt {
+    fn sub_assign(&mut self, rhs: GameUInt) {
+        self.value -= rhs.value;
+    }
+}
 impl<T> From<T> for GameUInt
 where
     T: Into<BigUint>,
@@ -57,6 +63,8 @@ where
         }
     }
 }
+pub static GAME_UINT_ZERO: GameUInt = GameUInt::from(0usize);
+pub static GAME_UINT_ONE: GameUInt = GameUInt::from(1usize);
 impl GameUInt {
     pub fn new(value: BigUint) -> Self {
         Self { value }

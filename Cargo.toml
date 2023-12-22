@@ -3,6 +3,11 @@ name = "PastaCranker"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+
+# This feature enables starting with fake money
+starting_money = []
+
 [package.metadata.cargo-xbuild]
 memcpy = false
 sysroot_path = "target/sysroot"

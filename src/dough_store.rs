@@ -1,4 +1,7 @@
+use crate::core_elements::{CoreState, TextSpriteWithValue};
+use crate::game_value::{GameUInt, GameValue};
 use crate::SpriteType;
+use alloc::boxed::Box;
 use alloc::format;
 use crankstart::graphics::{Graphics, LCDColor};
 use crankstart::sprite::{Sprite, SpriteManager, TextSprite};
@@ -7,8 +10,7 @@ use crankstart_sys::{LCDBitmapFlip, LCDSolidColor};
 
 pub struct DoughStore {
     dough_sprite: Sprite,
-    count_text: TextSprite,
-    dough_count: u8,
+    count_text: TextSpriteWithValue<GameUInt>,
 }
 
 impl DoughStore {
@@ -25,42 +27,22 @@ impl DoughStore {
         let (x, y) = pos;
         sprite.move_to(x, y).unwrap();
         sprite_manager.add_sprite(&sprite).unwrap();
-        let mut count_text =
+        let mut count_sprite =
             TextSprite::new("", LCDColor::Solid(LCDSolidColor::kColorWhite)).unwrap();
-        count_text.get_sprite_mut().move_to(x + 40.0, y).unwrap();
+        count_sprite.get_sprite_mut().move_to(x + 40.0, y).unwrap();
+        let count_text = TextSpriteWithValue::new(
+            count_sprite,
+            GameUInt::default(),
+            Box::new(|count| format!("x{}", GameUInt::to_string_hum(count))),
+        );
         let mut s = Self {
             dough_sprite: sprite,
             count_text,
-            dough_count: 0,
         };
-        s.update_count_text();
         s
     }
 
-    pub fn set_dough_count(&mut self, count: u8) {
-        self.dough_count = count;
-        self.update_count_text()
-    }
-
-    fn update_count_text(&mut self) {
-        self.count_text
-            .update_text(&format!("x{}", self.dough_count))
-            .unwrap();
-    }
-
-    /// Take one dough ball from the store, returns true if there was one to take.
-    pub fn take_one(&mut self) -> bool {
-        if self.dough_count > 0 {
-            self.dough_count -= 1;
-            self.update_count_text();
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn add_one(&mut self) {
-        self.dough_count += 1;
-        self.update_count_text();
+    fn update(&mut self, state: &CoreState) {
+        self.count_text.update_value(&state.dough_balls);
     }
 }

@@ -32,15 +32,24 @@ pub struct CoreState {
     // TODO: Quantities here will need to be able to grow larger than usize
     pub(crate) money: GameUInt,
     pub(crate) diamonds: GameUInt,
-    pub(crate) dough_balls: usize,
+    pub(crate) dough_balls: GameUInt,
 }
 
 impl Default for CoreState {
+    #[cfg(feature = "starting_money")]
     fn default() -> Self {
         Self {
             money: GameUInt::from(15000000usize),
             diamonds: GameUInt::from(42usize),
-            dough_balls: 0,
+            dough_balls: GameUInt::from(5usize),
+        }
+    }
+    #[cfg(not(feature = "starting_money"))]
+    fn default() -> Self {
+        Self {
+            money: GameUInt::from(0usize),
+            diamonds: GameUInt::from(0usize),
+            dough_balls: GameUInt::from(0usize),
         }
     }
 }
@@ -148,19 +157,24 @@ pub struct TextSpriteWithValue<V> {
 
 impl<V: PartialEq + Clone> TextSpriteWithValue<V> {
     pub fn new(sprite: TextSprite, value: V, value_to_string: Box<dyn (Fn(&V) -> String)>) -> Self {
-        Self {
+        let mut t = Self {
             sprite,
             value,
             value_to_string,
-        }
+        };
+        t.update_sprite();
+        t
     }
 
+    fn update_sprite(&mut self) {
+        self.sprite
+            .update_text(&(self.value_to_string)(&self.value))
+            .unwrap();
+    }
     pub fn update_value(&mut self, value: &V) {
         if *value != self.value {
             self.value = value.clone();
-            self.sprite
-                .update_text(&(self.value_to_string)(&self.value))
-                .unwrap();
+            self.update_sprite();
         }
     }
 }
