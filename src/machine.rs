@@ -1,14 +1,15 @@
-use crate::core_elements::{CountStore, IncrSprite};
+use crate::core_elements::IncrSprite;
 use crate::dough_store::DoughStore;
 use crate::flour_pile::FlourPile;
-use crate::game_value::{GameUInt, GAME_UINT_ONE, GAME_UINT_ZERO};
-use crate::{dough_store, helpers, CoreParameters, CoreState, SpriteType};
+use crate::game_value::GameUInt;
+use crate::{helpers, CoreParameters, CoreState, SpriteType};
 use alloc::format;
 use alloc::vec::Vec;
 use crankstart::graphics::{Bitmap, Graphics};
 use crankstart::sprite::{Sprite, SpriteManager};
 use crankstart::system::System;
 use crankstart_sys::LCDBitmapFlip;
+use num_traits::Zero;
 
 struct CrankTracker {
     crank_progress: f32,
@@ -46,6 +47,7 @@ struct MachineCrank {
     sprite: Sprite,
     pos: f32,
     crank_tracker: CrankTracker,
+    prev_crank_angle: f32,
 }
 
 impl MachineCrank {
@@ -69,6 +71,7 @@ impl MachineCrank {
             sprite,
             pos: 0.0,
             crank_tracker: CrankTracker::new(360.0),
+            prev_crank_angle: System::get().get_crank_angle().unwrap_or(0.0),
         }
     }
 
@@ -84,13 +87,24 @@ impl MachineCrank {
 
     pub fn update(&mut self) -> bool {
         let system = System::get();
+        // There is extra paranoia here because in theory "get_crank_change" resets the value after
+        // each call, but I've observed this being not true, as least in the simulator
+        // As a result we monitor the crank angle and only update if it has changed
         let crank_change = system.get_crank_change().unwrap_or(0.0);
-        self.pos = helpers::wrap(self.pos + crank_change, 0.0, 360.0);
-        let idx = self.get_idx();
-        self.sprite
-            .set_image(self.images[idx].clone(), LCDBitmapFlip::kBitmapUnflipped)
-            .unwrap();
-        self.crank_tracker.update(crank_change)
+        let crank_angle = system.get_crank_angle().unwrap_or(0.0);
+        let angle_changed = crank_angle != self.prev_crank_angle;
+        self.prev_crank_angle = crank_angle;
+        if angle_changed {
+            System::log_to_console(&format!("Crank change: {}", crank_change));
+            self.pos = helpers::wrap(self.pos + crank_change, 0.0, 360.0);
+            let idx = self.get_idx();
+            self.sprite
+                .set_image(self.images[idx].clone(), LCDBitmapFlip::kBitmapUnflipped)
+                .unwrap();
+            self.crank_tracker.update(crank_change)
+        } else {
+            false
+        }
     }
 }
 
@@ -144,8 +158,9 @@ impl PastaMachineState {
     pub fn update_crank(&mut self, state: &mut CoreState, parameters: &CoreParameters) {
         let crank_ticked = self.crank.update();
         if crank_ticked {
+            System::log_to_console("Crank ticked");
             let top_dough_pre = self.top_dough.get_idx();
-            // TODO: Don't like this both should always be in sync so should treat them this way
+            // TODO: Don't like this. Both should always be in sync so should treat them this way
             self.top_dough.incr(false);
             self.bottom_dough.incr(false);
 
@@ -157,18 +172,15 @@ impl PastaMachineState {
 
             if !self.top_dough.is_active() {
                 // try and replenish
-                if state.dough_balls > GAME_UINT_ZERO {
-                    state.dough_balls -= GAME_UINT_ONE;
+                if !state.dough_balls.is_zero() {
+                    state.dough_balls -= GameUInt::one();
                     self.top_dough.reset();
                     self.bottom_dough.reset();
                 }
             }
         }
     }
-    pub fn update(&mut self, state: &mut CoreState, pile: &mut FlourPile) {
-        if pile.is_full() {
-            state.dough_balls += GAME_UINT_ONE;
-            pile.reset();
-        }
+    pub fn update(&mut self, state: &mut CoreState) {
+        self.dough_store.update(state);
     }
 }

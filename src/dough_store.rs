@@ -42,7 +42,7 @@ impl DoughStore {
         s
     }
 
-    fn update(&mut self, state: &CoreState) {
+    pub fn update(&mut self, state: &CoreState) {
         self.count_text.update_value(&state.dough_balls);
     }
 }

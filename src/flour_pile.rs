@@ -1,6 +1,6 @@
 use crate::fill_bar::FillBar;
 use crate::helpers::load_sprite_at;
-use crate::{CoreParameters, SpriteType};
+use crate::{CoreParameters, CoreState, GameUInt, SpriteType};
 use anyhow::Error;
 use crankstart::graphics::{Bitmap, Graphics};
 use crankstart::sprite::Sprite;
@@ -40,7 +40,7 @@ impl FlourPile {
         self.fill_bar.update();
     }
 
-    pub fn update(&mut self, parameters: &CoreParameters) {
+    pub fn update(&mut self, state: &mut CoreState, parameters: &CoreParameters) {
         // TODO: Disable input if menu is open ...
         let (_, pressed, released) = System::get().get_button_state().unwrap();
         if (pressed & PDButtons::kButtonA).0 != 0 {
@@ -50,16 +50,21 @@ impl FlourPile {
             self.button_indicator.set_unpressed();
             self.tick(parameters.knead_tick_size);
         }
+
+        if self.is_full() {
+            state.dough_balls += GameUInt::one();
+            self.reset();
+        }
     }
     pub fn draw_fill_bar(&self) -> Result<(), Error> {
         self.fill_bar.draw()
     }
 
-    pub fn is_full(&self) -> bool {
+    fn is_full(&self) -> bool {
         self.fill_bar.get_fill_pct() > 0.99
     }
 
-    pub fn reset(&mut self) {
+    fn reset(&mut self) {
         self.fill_bar.set_fill_pct(0.0);
     }
 }

@@ -96,15 +96,13 @@ impl Game for State {
             SpriteType::MachineCrank => self
                 .pasta_machine
                 .update_crank(&mut self.state, &self.parameters),
-            SpriteType::MachineBody => self
-                .pasta_machine
-                .update(&mut self.state, &mut self.flour_pile),
+            SpriteType::MachineBody => self.pasta_machine.update(&mut self.state),
             SpriteType::FillBar => self.flour_pile.fill_bar_update(),
-            SpriteType::FlourPile => self.flour_pile.update(&self.parameters),
+            SpriteType::FlourPile => self.flour_pile.update(&mut self.state, &self.parameters),
             SpriteType::BottomBar => self.bottom_bar.update(&self.state, &mut self.menu),
             SpriteType::Menu => self.menu.update(&mut self.parameters, &mut self.state),
-            SpriteType::MachineDough
-            | SpriteType::DoughStoreDough
+            SpriteType::DoughStoreDough
+            | SpriteType::MachineDough
             | SpriteType::AButtonIndicator => {}
         }
         Ok(())

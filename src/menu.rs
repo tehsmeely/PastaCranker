@@ -96,7 +96,7 @@ impl Menu {
             }
         }
     }
-    fn update_internal(&mut self, state: &mut CoreState) {
+    fn update_internal(&mut self, state: &mut CoreState, parameters: &mut CoreParameters) {
         let (_, pressed, released) = System::get().get_button_state().unwrap();
         if (pressed & PDButtons::kButtonUp).0 != 0 {
             self.change_selected_item(-1);
@@ -104,11 +104,9 @@ impl Menu {
             self.change_selected_item(1);
         }
 
-        let debug_cash = GameUInt::from(1000000000000000usize);
-
         if (pressed & PDButtons::kButtonA).0 != 0 {
             System::log_to_console("Pressed A");
-            if self.menu_items[self.selected_item_index].press_and_trigger(&mut state.money) {
+            if self.menu_items[self.selected_item_index].press_and_trigger(state, parameters) {
                 System::log_to_console(&format!(
                     "Pressed A, cost: {}",
                     self.menu_items[self.selected_item_index].data.cost_str()
@@ -121,13 +119,33 @@ impl Menu {
                 .set_pressed(false, self.pressed_item_index == self.selected_item_index);
         }
     }
-    pub fn update(&mut self, _parameters: &mut CoreParameters, state: &mut CoreState) {
+    pub fn update(&mut self, parameters: &mut CoreParameters, state: &mut CoreState) {
         // Only process key presses if enabled
         match self.state {
             VisibilityState::Hidden => {}
             VisibilityState::Visible => {
-                self.update_internal(state);
+                self.update_internal(state, parameters);
             }
+        }
+    }
+}
+mod menu_item_data_prefabs {
+    use crate::menu::MenuItemData;
+    use crate::GameUInt;
+    use alloc::boxed::Box;
+    use num_bigint::BigUint;
+
+    fn dough_tick() -> MenuItemData {
+        MenuItemData {
+            description: "Knead for Speed".into(),
+            count: 0,
+            cost_fn: Box::new(|count| {
+                let cost: BigUint = BigUint::from(10usize).pow(count as u32);
+                cost.into()
+            }),
+            on_buy_fn: Box::new(|count, _state, parameters| {
+                parameters.knead_tick_size = 0.01 + (count as f32 * 0.01);
+            }),
         }
     }
 }
@@ -136,6 +154,9 @@ struct MenuItemData {
     description: String,
     count: usize,
     cost_fn: Box<dyn Fn(usize) -> GameUInt>,
+    // TODO: Think about how this buy_fn is deterministic (in terms of saving an loading state) as
+    // well as not overwriting other items (i.e. if both would change/set dough tick size)
+    on_buy_fn: Box<dyn Fn(usize, &mut CoreState, &mut CoreParameters)>,
 }
 
 impl MenuItemData {
@@ -147,6 +168,10 @@ impl MenuItemData {
         cost.to_string_hum()
     }
 
+    fn on_buy(&self, state: &mut CoreState, parameters: &mut CoreParameters) {
+        (self.on_buy_fn)(self.count, state, parameters);
+    }
+
     fn new_test(i: usize) -> Self {
         Self {
             description: format!("Menu item {}", i),
@@ -154,6 +179,9 @@ impl MenuItemData {
             cost_fn: Box::new(move |count| {
                 let cost: BigUint = BigUint::from(100 + i) * BigUint::from(count);
                 cost.into()
+            }),
+            on_buy_fn: Box::new(move |count, state, parameters| {
+                parameters.knead_tick_size += 0.1;
             }),
         }
     }
@@ -239,24 +267,24 @@ impl MenuItem {
         }
     }
 
-    pub fn press_and_trigger(&mut self, available_cash: &mut GameUInt) -> bool {
+    pub fn press_and_trigger(
+        &mut self,
+        state: &mut CoreState,
+        parameters: &mut CoreParameters,
+    ) -> bool {
         System::log_to_console(&format!(
             "Trying to buy: cost: {}, with cash {}",
             self.data.cost().to_string_hum(),
-            available_cash.to_string_hum()
+            state.money.to_string_hum()
         ));
         let cost = self.data.cost();
-        if cost < *available_cash {
-            System::log_to_console("Rich enough, buying");
+        if cost < state.money {
             self.data.count += 1;
-            System::log_to_console(&format!("Available cash: {:?}", available_cash));
-            System::log_to_console(&format!("Charging: {:?}", cost));
-            available_cash.sub_assign(cost);
-            System::log_to_console(&format!("Available cash after: {:?}", available_cash));
+            state.money.sub_assign(cost);
+            self.data.on_buy(state, parameters);
             self.update_text();
             true
         } else {
-            System::log_to_console("Not enough cash");
             false
         }
     }

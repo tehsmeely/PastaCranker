@@ -63,8 +63,6 @@ where
         }
     }
 }
-pub static GAME_UINT_ZERO: GameUInt = GameUInt::from(0usize);
-pub static GAME_UINT_ONE: GameUInt = GameUInt::from(1usize);
 impl GameUInt {
     pub fn new(value: BigUint) -> Self {
         Self { value }
@@ -75,6 +73,10 @@ impl GameUInt {
     }
     pub fn take(self) -> BigUint {
         self.value
+    }
+
+    pub fn one() -> Self {
+        Self::from(1usize)
     }
 }
 
