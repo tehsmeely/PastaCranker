@@ -11,22 +11,30 @@ use crankstart::sprite::{Sprite, SpriteManager, TextSprite};
 use crankstart::system;
 use crankstart_sys::{LCDBitmapFlip, LCDSolidColor};
 use euclid::Size2D;
+use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// Core parameters that may be changed/upgraded and impact how other things behave
 pub struct CoreParameters {
+    /// How much each knead tick increases the fill bar
     pub(crate) knead_tick_size: f32,
-    pub(crate) pasta_price: usize,
+    /// How much each pasta is worth
+    pub(crate) pasta_price: GameUInt,
+    /// How much autocranking occurs
+    pub(crate) auto_crank_level: usize,
 }
 
 impl Default for CoreParameters {
     fn default() -> Self {
         Self {
             knead_tick_size: 0.02,
-            pasta_price: 5,
+            pasta_price: GameUInt::from(20usize),
+            auto_crank_level: 0,
         }
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// Core state of the game, including things that change/increase over time
 pub struct CoreState {
     // TODO: Quantities here will need to be able to grow larger than usize
@@ -60,6 +68,9 @@ impl CoreState {
     }
 
     pub fn add_money(&mut self, amount: usize) {
+        self.money += amount;
+    }
+    pub fn add_money_big(&mut self, amount: GameUInt) {
         self.money += amount;
     }
 }
@@ -226,5 +237,50 @@ impl Not for VisibilityState {
             Self::Visible => Self::Hidden,
             Self::Hidden => Self::Visible,
         }
+    }
+}
+
+pub struct Timer {
+    start_time: f32,
+    duration: f32,
+    finished: bool,
+    just_finished: bool,
+}
+
+impl Timer {
+    pub fn new(duration: f32) -> Self {
+        Self {
+            start_time: system::System::get().get_elapsed_time().unwrap(),
+            duration,
+            finished: false,
+            just_finished: false,
+        }
+    }
+
+    pub fn update(&mut self) {
+        if self.finished {
+            self.just_finished = false;
+            return;
+        }
+        let now = system::System::get()
+            .get_elapsed_time()
+            .unwrap_or(self.start_time);
+        if now - self.start_time > self.duration {
+            self.finished = true;
+            self.just_finished = true;
+        }
+    }
+
+    pub fn just_finished(&mut self) -> bool {
+        self.just_finished
+    }
+    pub fn finished(&mut self) -> bool {
+        self.finished
+    }
+
+    pub fn reset(&mut self) {
+        self.start_time = system::System::get().get_elapsed_time().unwrap();
+        self.finished = false;
+        self.just_finished = false;
     }
 }

@@ -1,3 +1,4 @@
+use crate::audio_events::{AudioEvent, AudioEventChannel};
 use crate::core_elements::IncrSprite;
 use crate::dough_store::DoughStore;
 use crate::flour_pile::FlourPile;
@@ -155,7 +156,12 @@ impl PastaMachineState {
             dough_store,
         }
     }
-    pub fn update_crank(&mut self, state: &mut CoreState, parameters: &CoreParameters) {
+    pub fn update_crank(
+        &mut self,
+        state: &mut CoreState,
+        parameters: &CoreParameters,
+        events: &mut AudioEventChannel,
+    ) {
         let crank_ticked = self.crank.update();
         if crank_ticked {
             System::log_to_console("Crank ticked");
@@ -164,10 +170,9 @@ impl PastaMachineState {
             self.top_dough.incr(false);
             self.bottom_dough.incr(false);
 
-            // TODO: Emit something when dough is completed. i.e. when top_dough transitions from
-            // 3 to None
             if top_dough_pre == Some(3) && self.top_dough.get_idx().is_none() {
-                state.add_money(parameters.pasta_price);
+                state.add_money_big(parameters.pasta_price.clone());
+                events.push(AudioEvent::MoneyGained);
             }
 
             if !self.top_dough.is_active() {

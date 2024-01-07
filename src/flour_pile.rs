@@ -1,3 +1,4 @@
+use crate::audio_events::{AudioEvent, AudioEventChannel};
 use crate::fill_bar::FillBar;
 use crate::helpers::load_sprite_at;
 use crate::{CoreParameters, CoreState, GameUInt, SpriteType};
@@ -40,7 +41,12 @@ impl FlourPile {
         self.fill_bar.update();
     }
 
-    pub fn update(&mut self, state: &mut CoreState, parameters: &CoreParameters) {
+    pub fn update(
+        &mut self,
+        state: &mut CoreState,
+        parameters: &CoreParameters,
+        events: &mut AudioEventChannel,
+    ) {
         // TODO: Disable input if menu is open ...
         let (_, pressed, released) = System::get().get_button_state().unwrap();
         if (pressed & PDButtons::kButtonA).0 != 0 {
@@ -52,6 +58,7 @@ impl FlourPile {
         }
 
         if self.is_full() {
+            events.push(AudioEvent::DoughCreated);
             state.dough_balls += GameUInt::one();
             self.reset();
         }

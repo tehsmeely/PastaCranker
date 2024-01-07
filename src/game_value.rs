@@ -4,6 +4,7 @@ use core::fmt::{Display, Formatter};
 use core::ops::{AddAssign, Deref, DerefMut, SubAssign};
 use crankstart::Game;
 use num_bigint::BigUint;
+use serde::{Deserialize, Serialize};
 
 /// A Game Value is a value of ~inf size that has a nice iso multiple display.
 /// intended for use with any key game value that might be displayed or used to store state
@@ -17,7 +18,7 @@ pub trait GameValue {
     fn to_string_hum(&self) -> String;
 }
 
-#[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Default)]
+#[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Default, Serialize, Deserialize)]
 pub struct GameUInt {
     value: BigUint,
 }

@@ -1,3 +1,4 @@
+use crate::audio_events::{AudioEvent, AudioEventChannel};
 use crate::core_elements::{CoreParameters, CoreState, VisibilityState};
 use crate::game_value::{GameUInt, GameValue};
 use crate::{SpriteType, State};
@@ -7,6 +8,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::ops::{RemAssign, SubAssign};
 use crankstart::graphics::{Bitmap, Graphics};
+use crankstart::log_to_console;
 use crankstart::sprite::{Sprite, TextSprite};
 use crankstart::system::System;
 use crankstart_sys::{LCDBitmapFlip, PDButtons};
@@ -21,8 +23,9 @@ pub struct Menu {
 }
 
 impl Menu {
-    const ITEM_SPACING: f32 = 50.0;
-    const ITEM_MAX_DISPLAY_Y: f32 = 190.0;
+    const ITEM_Y_START: f32 = 35.0;
+    const ITEM_SPACING: f32 = 72.0;
+    const ITEM_MAX_DISPLAY_Y: f32 = 170.0;
     pub fn new() -> Self {
         let background = crate::helpers::load_sprite_at(
             "res/menu_background",
@@ -32,16 +35,15 @@ impl Menu {
         );
         let mut menu_items = Vec::new();
         let num_items = 30;
-        let max_y_offset = 25.0 + (num_items as f32 * Self::ITEM_SPACING);
+        let max_y_offset = Self::ITEM_Y_START + (num_items as f32 * Self::ITEM_SPACING);
         let max_scroll_amount = if max_y_offset > Self::ITEM_MAX_DISPLAY_Y {
             max_y_offset - Self::ITEM_MAX_DISPLAY_Y
         } else {
             0.0
         };
-        for i in 0..num_items {
-            let x = 25.0 + (i as f32 * Self::ITEM_SPACING);
-            let offset = BoundedPosition::new(x, x - max_scroll_amount, x);
-            let data = MenuItemData::new_test(i);
+        for (i, data) in menu_item_data_prefabs::all().into_iter().enumerate() {
+            let y = Self::ITEM_Y_START + (i as f32 * Self::ITEM_SPACING);
+            let offset = BoundedPosition::new(y, y - max_scroll_amount, y);
             let item = MenuItem::new(data, offset);
             menu_items.push(item);
         }
@@ -54,6 +56,20 @@ impl Menu {
         };
         s.change_selected_item(0);
         s
+    }
+
+    pub fn init_counts(&mut self, counts: &[usize]) {
+        if self.menu_items.len() != counts.len() {
+            panic!("init_counts: counts.len() != menu_items.len(). Save file invalid?");
+        }
+        for (i, count) in counts.iter().enumerate() {
+            self.menu_items[i].data.count = *count;
+            self.menu_items[i].update_text();
+        }
+    }
+
+    pub fn to_counts(&self) -> Vec<usize> {
+        self.menu_items.iter().map(|item| item.data.count).collect()
     }
 
     fn scroll(&mut self, change: f32) {
@@ -96,7 +112,12 @@ impl Menu {
             }
         }
     }
-    fn update_internal(&mut self, state: &mut CoreState, parameters: &mut CoreParameters) {
+    fn update_internal(
+        &mut self,
+        state: &mut CoreState,
+        parameters: &mut CoreParameters,
+        audio_events: &mut AudioEventChannel,
+    ) {
         let (_, pressed, released) = System::get().get_button_state().unwrap();
         if (pressed & PDButtons::kButtonUp).0 != 0 {
             self.change_selected_item(-1);
@@ -113,18 +134,26 @@ impl Menu {
                 ));
                 self.menu_items[self.selected_item_index].set_pressed(true, true);
                 self.pressed_item_index = self.selected_item_index;
+                audio_events.push(AudioEvent::UpgradeBought);
+            } else {
+                audio_events.push(AudioEvent::UpgradeDenied);
             }
         } else if (released & PDButtons::kButtonA).0 != 0 {
             self.menu_items[self.pressed_item_index]
                 .set_pressed(false, self.pressed_item_index == self.selected_item_index);
         }
     }
-    pub fn update(&mut self, parameters: &mut CoreParameters, state: &mut CoreState) {
+    pub fn update(
+        &mut self,
+        parameters: &mut CoreParameters,
+        state: &mut CoreState,
+        audio_events: &mut AudioEventChannel,
+    ) {
         // Only process key presses if enabled
         match self.state {
             VisibilityState::Hidden => {}
             VisibilityState::Visible => {
-                self.update_internal(state, parameters);
+                self.update_internal(state, parameters, audio_events);
             }
         }
     }
@@ -133,39 +162,89 @@ mod menu_item_data_prefabs {
     use crate::menu::MenuItemData;
     use crate::GameUInt;
     use alloc::boxed::Box;
+    use alloc::vec;
+    use alloc::vec::Vec;
     use num_bigint::BigUint;
 
-    fn dough_tick() -> MenuItemData {
+    /// TODO: wrap a cost_fn helper that takes a max count to avoid the None check?
+    pub(super) fn all() -> Vec<MenuItemData> {
+        vec![pasta_sell_price(), dough_tick(), auto_cranker()]
+    }
+
+    fn pasta_cost(count: u32) -> GameUInt {
+        (BigUint::from(20usize) + BigUint::from(20usize).pow(count)).into()
+    }
+    fn pasta_sell_price() -> MenuItemData {
         MenuItemData {
-            description: "Knead for Speed".into(),
+            name: "Pasta Sell Price".into(),
+            description: "Sell pasta for more".into(),
             count: 0,
             cost_fn: Box::new(|count| {
+                if count > 10 {
+                    return None;
+                }
+                let cost = pasta_cost(count as u32);
+                Some(cost.into())
+            }),
+            on_buy_fn: Box::new(|count, _state, parameters| {
+                parameters.pasta_price = pasta_cost(count as u32);
+            }),
+        }
+    }
+    fn dough_tick() -> MenuItemData {
+        MenuItemData {
+            name: "Knead for Speed".into(),
+            description: "Knead faster".into(),
+            count: 0,
+            cost_fn: Box::new(|count| {
+                if count > 10 {
+                    return None;
+                }
                 let cost: BigUint = BigUint::from(10usize).pow(count as u32);
-                cost.into()
+                Some(cost.into())
             }),
             on_buy_fn: Box::new(|count, _state, parameters| {
                 parameters.knead_tick_size = 0.01 + (count as f32 * 0.01);
             }),
         }
     }
+
+    fn auto_cranker() -> MenuItemData {
+        MenuItemData {
+            name: "Auto-cranker".into(),
+            description: "Automatically crank".into(),
+            count: 0,
+            cost_fn: Box::new(|count| {
+                if count > 10 {
+                    return None;
+                }
+                let cost: BigUint = BigUint::from(10usize).pow(count as u32);
+                Some(cost.into())
+            }),
+            on_buy_fn: Box::new(|count, _state, parameters| parameters.auto_crank_level = count),
+        }
+    }
 }
 
 struct MenuItemData {
+    name: String,
     description: String,
     count: usize,
-    cost_fn: Box<dyn Fn(usize) -> GameUInt>,
+    cost_fn: Box<dyn Fn(usize) -> Option<GameUInt>>,
     // TODO: Think about how this buy_fn is deterministic (in terms of saving an loading state) as
     // well as not overwriting other items (i.e. if both would change/set dough tick size)
     on_buy_fn: Box<dyn Fn(usize, &mut CoreState, &mut CoreParameters)>,
 }
 
 impl MenuItemData {
-    fn cost(&self) -> GameUInt {
+    fn cost(&self) -> Option<GameUInt> {
         (self.cost_fn)(self.count)
     }
     fn cost_str(&self) -> String {
-        let cost: GameUInt = self.cost();
-        cost.to_string_hum()
+        match self.cost() {
+            Some(cost) => cost.to_string_hum(),
+            None => return "Complete".into(),
+        }
     }
 
     fn on_buy(&self, state: &mut CoreState, parameters: &mut CoreParameters) {
@@ -174,11 +253,12 @@ impl MenuItemData {
 
     fn new_test(i: usize) -> Self {
         Self {
+            name: format!("{}", i),
             description: format!("Menu item {}", i),
             count: 1,
             cost_fn: Box::new(move |count| {
                 let cost: BigUint = BigUint::from(100 + i) * BigUint::from(count);
-                cost.into()
+                Some(cost.into())
             }),
             on_buy_fn: Box::new(move |count, state, parameters| {
                 parameters.knead_tick_size += 0.1;
@@ -192,7 +272,8 @@ pub struct MenuItem {
     sprite: Sprite,
     state: VisibilityState,
     y_offset: BoundedPosition,
-    text: TextSprite,
+    name_text: TextSprite,
+    desc_text: TextSprite,
     cost_text: TextSprite,
     selected_image: Bitmap,
     unselected_image: Bitmap,
@@ -200,22 +281,30 @@ pub struct MenuItem {
 }
 
 impl MenuItem {
-    const TEXT_OFFSET: f32 = -8.0;
-    const COST_TEXT_OFFSET: f32 = 8.0;
+    const NAME_TEXT_OFFSET: f32 = -18.0;
+    const COST_TEXT_OFFSET: f32 = 18.0;
     pub fn new(data: MenuItemData, y_offset: BoundedPosition) -> Self {
         let y = y_offset.get();
         let mut sprite =
             crate::helpers::load_sprite_at("res/menu_item_background0", -95.0, y, None);
         sprite.set_z_index(10).unwrap();
-        let mut text = TextSprite::new(
+        let mut name_text = TextSprite::new(
             "",
             crankstart::graphics::LCDColor::Solid(crankstart_sys::LCDSolidColor::kColorWhite),
         )
         .unwrap();
-        text.get_sprite_mut()
-            .move_to(-95.0, y + Self::TEXT_OFFSET)
+        name_text
+            .get_sprite_mut()
+            .move_to(-95.0, y + Self::NAME_TEXT_OFFSET)
             .unwrap();
-        text.get_sprite_mut().set_z_index(11).unwrap();
+        name_text.get_sprite_mut().set_z_index(11).unwrap();
+        let mut desc_text = TextSprite::new(
+            "",
+            crankstart::graphics::LCDColor::Solid(crankstart_sys::LCDSolidColor::kColorWhite),
+        )
+        .unwrap();
+        desc_text.get_sprite_mut().move_to(-95.0, y).unwrap();
+        desc_text.get_sprite_mut().set_z_index(11).unwrap();
         let mut cost_text = TextSprite::new(
             "",
             crankstart::graphics::LCDColor::Solid(crankstart_sys::LCDSolidColor::kColorWhite),
@@ -235,7 +324,8 @@ impl MenuItem {
             sprite,
             state: VisibilityState::Hidden,
             y_offset,
-            text,
+            name_text,
+            desc_text,
             cost_text,
             selected_image,
             unselected_image,
@@ -246,10 +336,11 @@ impl MenuItem {
     }
 
     fn update_text(&mut self) {
-        let descr_str = format!("{}: {}", self.data.description, self.data.count);
-        self.text.update_text(descr_str).unwrap();
+        let name_str = format!("{}: {}", self.data.name, self.data.count);
+        self.name_text.update_text(name_str).unwrap();
         let cost_str = format!("Cost: {}", self.data.cost_str());
         self.cost_text.update_text(cost_str).unwrap();
+        self.desc_text.update_text(&self.data.description).unwrap();
     }
 
     pub fn set_selected(&mut self, selected: bool) {
@@ -267,24 +358,29 @@ impl MenuItem {
         }
     }
 
+    /// Press menu item. Returns true if successfully bought, false if not.
     pub fn press_and_trigger(
         &mut self,
         state: &mut CoreState,
         parameters: &mut CoreParameters,
     ) -> bool {
-        System::log_to_console(&format!(
-            "Trying to buy: cost: {}, with cash {}",
-            self.data.cost().to_string_hum(),
-            state.money.to_string_hum()
-        ));
-        let cost = self.data.cost();
-        if cost < state.money {
-            self.data.count += 1;
-            state.money.sub_assign(cost);
-            self.data.on_buy(state, parameters);
-            self.update_text();
-            true
+        if let Some(cost) = self.data.cost() {
+            System::log_to_console(&format!(
+                "Trying to buy: cost: {}, with cash {}",
+                cost.to_string_hum(),
+                state.money.to_string_hum()
+            ));
+            if cost < state.money {
+                self.data.count += 1;
+                state.money.sub_assign(cost);
+                self.data.on_buy(state, parameters);
+                self.update_text();
+                true
+            } else {
+                false
+            }
         } else {
+            log_to_console!("No item cost is None, which means it's at max");
             false
         }
     }
@@ -304,10 +400,11 @@ impl MenuItem {
         let (x, _) = self.sprite.get_position().unwrap();
         let y = self.y_offset.get();
         self.sprite.move_to(x, y).unwrap();
-        self.text
+        self.name_text
             .get_sprite_mut()
-            .move_to(94.5, y + Self::TEXT_OFFSET)
+            .move_to(94.5, y + Self::NAME_TEXT_OFFSET)
             .unwrap();
+        self.desc_text.get_sprite_mut().move_to(94.5, y).unwrap();
         self.cost_text
             .get_sprite_mut()
             .move_to(94.5, y + Self::COST_TEXT_OFFSET)
@@ -316,30 +413,20 @@ impl MenuItem {
     pub fn set_state(&mut self, state: VisibilityState) {
         self.state = state;
         let y = self.y_offset.get();
-        match state {
-            VisibilityState::Hidden => {
-                self.sprite.move_to(-95.5, y).unwrap();
-                self.text
-                    .get_sprite_mut()
-                    .move_to(-95.5, y + Self::TEXT_OFFSET)
-                    .unwrap();
-                self.cost_text
-                    .get_sprite_mut()
-                    .move_to(-95.5, y + Self::COST_TEXT_OFFSET)
-                    .unwrap();
-            }
-            VisibilityState::Visible => {
-                self.sprite.move_to(94.5, y).unwrap();
-                self.text
-                    .get_sprite_mut()
-                    .move_to(94.5, y + Self::TEXT_OFFSET)
-                    .unwrap();
-                self.cost_text
-                    .get_sprite_mut()
-                    .move_to(94.5, y + Self::COST_TEXT_OFFSET)
-                    .unwrap();
-            }
-        }
+        let x = match state {
+            VisibilityState::Hidden => -95.5,
+            VisibilityState::Visible => 94.5,
+        };
+        self.sprite.move_to(x, y).unwrap();
+        self.name_text
+            .get_sprite_mut()
+            .move_to(x, y + Self::NAME_TEXT_OFFSET)
+            .unwrap();
+        self.desc_text.get_sprite_mut().move_to(x, y).unwrap();
+        self.cost_text
+            .get_sprite_mut()
+            .move_to(x, y + Self::COST_TEXT_OFFSET)
+            .unwrap();
     }
 }
 
