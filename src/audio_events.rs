@@ -39,6 +39,7 @@ impl AudioEvent {
     }
 }
 
+#[derive(Debug)]
 pub struct SoundStore {
     sounds: HashMap<AudioEvent, AudioSample>,
     players: Vec<SamplePlayer>,
@@ -65,6 +66,7 @@ impl SoundStore {
     }
 }
 
+#[derive(Debug)]
 pub struct AudioEventChannel(Vec<AudioEvent>);
 
 impl AudioEventChannel {

@@ -4,11 +4,12 @@ use alloc::boxed::Box;
 use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
-use core::ops::{Add, AddAssign, Not};
-use crankstart::geometry::ScreenSize;
+use core::fmt::{Debug, Formatter};
+use core::ops::{Add, Not};
 use crankstart::graphics::{Bitmap, Graphics, LCDColor};
 use crankstart::sprite::{Sprite, SpriteManager, TextSprite};
 use crankstart::system;
+use crankstart::system::System;
 use crankstart_sys::{LCDBitmapFlip, LCDSolidColor};
 use euclid::Size2D;
 use serde::{Deserialize, Serialize};
@@ -22,6 +23,8 @@ pub struct CoreParameters {
     pub(crate) pasta_price: GameUInt,
     /// How much autocranking occurs
     pub(crate) auto_crank_level: usize,
+    /// How much autokneading occurs
+    pub(crate) auto_knead_level: usize,
 }
 
 impl Default for CoreParameters {
@@ -30,6 +33,7 @@ impl Default for CoreParameters {
             knead_tick_size: 0.02,
             pasta_price: GameUInt::from(20usize),
             auto_crank_level: 0,
+            auto_knead_level: 0,
         }
     }
 }
@@ -75,6 +79,7 @@ impl CoreState {
     }
 }
 
+#[derive(Debug)]
 pub struct IncrSprite {
     images: Vec<Bitmap>,
     sprite: Sprite,
@@ -166,6 +171,19 @@ pub struct TextSpriteWithValue<V> {
     value_to_string: Box<dyn (Fn(&V) -> String)>,
 }
 
+impl<V> Debug for TextSpriteWithValue<V>
+where
+    V: Debug,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("TextSpriteWithValue")
+            .field("sprite", &self.sprite)
+            .field("value", &self.value)
+            .field("value_to_string", &"<opaque")
+            .finish()
+    }
+}
+
 impl<V: PartialEq + Clone> TextSpriteWithValue<V> {
     pub fn new(sprite: TextSprite, value: V, value_to_string: Box<dyn (Fn(&V) -> String)>) -> Self {
         let mut t = Self {
@@ -240,6 +258,7 @@ impl Not for VisibilityState {
     }
 }
 
+#[derive(Debug)]
 pub struct Timer {
     start_time: f32,
     duration: f32,
@@ -282,5 +301,42 @@ impl Timer {
         self.start_time = system::System::get().get_elapsed_time().unwrap();
         self.finished = false;
         self.just_finished = false;
+    }
+}
+
+#[derive(Debug)]
+pub struct AutoTicker {
+    level: usize,
+    last_tick: f32,
+    /** Rate is "degrees per sec", and is multiplied by level */
+    base_rate: f32,
+}
+
+impl AutoTicker {
+    pub fn new(base_rate: f32) -> Self {
+        Self {
+            level: 0,
+            last_tick: System::get().get_elapsed_time().unwrap_or(0.0),
+            base_rate,
+        }
+    }
+
+    fn get_rate(&self) -> f32 {
+        // Rate is "degrees per sec"
+        self.level as f32 * self.base_rate
+    }
+    pub fn poll(&mut self, level: usize) -> f32 {
+        if self.level != level {
+            self.level = level;
+        }
+        if level == 0 {
+            return 0.0;
+        }
+
+        let now = System::get().get_elapsed_time().unwrap_or(self.last_tick);
+        let rate = self.get_rate();
+        let time_diff = now - self.last_tick;
+        self.last_tick = now;
+        time_diff * rate
     }
 }

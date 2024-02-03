@@ -42,4 +42,7 @@ assets = [
     "res/audio/611800__metalfortress__confirm.wav",
     "res/audio/220187__gameaudio__loosedeny-casual-1.wav",
     "res/audio/330997__rudmer_rotteveel__stick-hitting-a-dreadlock-small-thud.wav",
+    "res/crank-gearbox.png",
+    "res/gran.png",
+    "res/info_overlay.png"
 ]

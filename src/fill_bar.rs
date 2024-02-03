@@ -10,6 +10,7 @@ use crankstart::system::System;
 use crankstart_sys::{LCDBitmapFlip, LCDPattern, LCDSolidColor};
 use euclid::{Point2D, Rect, Size2D};
 
+#[derive(Debug)]
 pub struct FillBar {
     fill_pct: f32,
     background_sprite: Sprite,
@@ -68,7 +69,6 @@ impl FillBar {
     }
 
     pub fn draw(&self) -> Result<(), Error> {
-        log_to_console!("FillBar::draw: {}", self.fill_pct);
         if let Some(image) = self.background_sprite.get_image()? {
             let bounds = self.background_sprite.get_bounds()?;
             // location is topleft not center like for normal sprite positioning

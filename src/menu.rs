@@ -1,11 +1,12 @@
 use crate::audio_events::{AudioEvent, AudioEventChannel};
 use crate::core_elements::{CoreParameters, CoreState, VisibilityState};
 use crate::game_value::{GameUInt, GameValue};
-use crate::{SpriteType, State};
+use crate::{GameState, SpriteType};
 use alloc::boxed::Box;
 use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
+use core::fmt::Debug;
 use core::ops::{RemAssign, SubAssign};
 use crankstart::graphics::{Bitmap, Graphics};
 use crankstart::log_to_console;
@@ -14,6 +15,7 @@ use crankstart::system::System;
 use crankstart_sys::{LCDBitmapFlip, PDButtons};
 use num_bigint::BigUint;
 
+#[derive(Debug)]
 pub struct Menu {
     state: VisibilityState,
     background: Sprite,
@@ -27,12 +29,13 @@ impl Menu {
     const ITEM_SPACING: f32 = 72.0;
     const ITEM_MAX_DISPLAY_Y: f32 = 170.0;
     pub fn new() -> Self {
-        let background = crate::helpers::load_sprite_at(
+        let mut background = crate::helpers::load_sprite_at(
             "res/menu_background",
             -95.5,
             95.50,
             Some(SpriteType::Menu as u8),
         );
+        background.set_z_index(9).unwrap();
         let mut menu_items = Vec::new();
         let num_items = 30;
         let max_y_offset = Self::ITEM_Y_START + (num_items as f32 * Self::ITEM_SPACING);
@@ -168,7 +171,12 @@ mod menu_item_data_prefabs {
 
     /// TODO: wrap a cost_fn helper that takes a max count to avoid the None check?
     pub(super) fn all() -> Vec<MenuItemData> {
-        vec![pasta_sell_price(), dough_tick(), auto_cranker()]
+        vec![
+            pasta_sell_price(),
+            dough_tick(),
+            auto_cranker(),
+            kneading_grannies(),
+        ]
     }
 
     fn pasta_cost(count: u32) -> GameUInt {
@@ -183,7 +191,7 @@ mod menu_item_data_prefabs {
                 if count > 10 {
                     return None;
                 }
-                let cost = pasta_cost(count as u32);
+                let cost = pasta_cost(count as u32) * GameUInt::from(6usize);
                 Some(cost.into())
             }),
             on_buy_fn: Box::new(|count, _state, parameters| {
@@ -224,6 +232,22 @@ mod menu_item_data_prefabs {
             on_buy_fn: Box::new(|count, _state, parameters| parameters.auto_crank_level = count),
         }
     }
+
+    fn kneading_grannies() -> MenuItemData {
+        MenuItemData {
+            name: "Kneading Grans".into(),
+            description: "Hire Grans to Knead".into(),
+            count: 0,
+            cost_fn: Box::new(|count| {
+                if count > 10 {
+                    return None;
+                }
+                let cost: BigUint = BigUint::from(10usize).pow(count as u32);
+                Some(cost.into())
+            }),
+            on_buy_fn: Box::new(|count, _state, parameters| parameters.auto_knead_level = count),
+        }
+    }
 }
 
 struct MenuItemData {
@@ -234,6 +258,18 @@ struct MenuItemData {
     // TODO: Think about how this buy_fn is deterministic (in terms of saving an loading state) as
     // well as not overwriting other items (i.e. if both would change/set dough tick size)
     on_buy_fn: Box<dyn Fn(usize, &mut CoreState, &mut CoreParameters)>,
+}
+
+impl Debug for MenuItemData {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("MenuItemData")
+            .field("name", &self.name)
+            .field("description", &self.description)
+            .field("count", &self.count)
+            .field("cost_fn", &"<opaque")
+            .field("on_buy_fn", &"<opaque")
+            .finish()
+    }
 }
 
 impl MenuItemData {
@@ -267,6 +303,7 @@ impl MenuItemData {
     }
 }
 
+#[derive(Debug)]
 pub struct MenuItem {
     data: MenuItemData,
     sprite: Sprite,
@@ -430,6 +467,7 @@ impl MenuItem {
     }
 }
 
+#[derive(Debug)]
 struct BoundedPosition {
     base: f32,
     current: f32,

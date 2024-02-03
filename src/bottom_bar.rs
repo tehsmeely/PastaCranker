@@ -11,6 +11,7 @@ use crankstart::system;
 use crankstart::system::System;
 use crankstart_sys::{LCDBitmapFlip, LCDSolidColor, PDButtons};
 
+#[derive(Debug)]
 pub struct BottomBar {
     background: Sprite,
     money: TextSpriteWithValue<GameUInt>,
@@ -43,11 +44,11 @@ impl BottomBar {
             GameUInt::default(),
             Box::new(GameUInt::to_string_hum),
         );
-        let mut diamond_icon = load_sprite_at("res/diamond", 75.0, y, None);
+        let mut diamond_icon = load_sprite_at("res/diamond", 105.0, y, None);
         diamond_icon.set_z_index(z + 1).unwrap();
         let mut diamonds =
             TextSprite::new("", LCDColor::Solid(LCDSolidColor::kColorWhite)).unwrap();
-        diamonds.get_sprite_mut().move_to(120.0, y).unwrap();
+        diamonds.get_sprite_mut().move_to(135.0, y).unwrap();
         diamonds.get_sprite_mut().set_z_index(z + 1).unwrap();
         let diamonds = TextSpriteWithValue::new(
             diamonds,
@@ -77,6 +78,7 @@ impl BottomBar {
     }
 }
 
+#[derive(Debug)]
 struct MenuIndicator {
     sprite: Sprite,
     state: VisibilityState,
@@ -99,7 +101,7 @@ impl MenuIndicator {
                 .set_image(hidden_image.clone(), LCDBitmapFlip::kBitmapUnflipped)
                 .unwrap();
             sprite.move_to(x, y).unwrap();
-            sprite.set_z_index(21);
+            sprite.set_z_index(21).unwrap();
             sprite_manager.add_sprite(&sprite).unwrap();
             sprite
         };

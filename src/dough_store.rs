@@ -8,6 +8,7 @@ use crankstart::sprite::{Sprite, SpriteManager, TextSprite};
 use crankstart::system::System;
 use crankstart_sys::{LCDBitmapFlip, LCDSolidColor};
 
+#[derive(Debug)]
 pub struct DoughStore {
     dough_sprite: Sprite,
     count_text: TextSpriteWithValue<GameUInt>,

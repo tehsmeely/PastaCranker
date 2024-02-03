@@ -1,8 +1,8 @@
 use crate::audio_events::{AudioEvent, AudioEventChannel};
-use crate::core_elements::IncrSprite;
+use crate::core_elements::{AutoTicker, IncrSprite};
 use crate::dough_store::DoughStore;
-use crate::flour_pile::FlourPile;
 use crate::game_value::GameUInt;
+use crate::helpers::load_sprite_at;
 use crate::{helpers, CoreParameters, CoreState, SpriteType};
 use alloc::format;
 use alloc::vec::Vec;
@@ -12,6 +12,7 @@ use crankstart::system::System;
 use crankstart_sys::LCDBitmapFlip;
 use num_traits::Zero;
 
+#[derive(Debug)]
 struct CrankTracker {
     crank_progress: f32,
     progress_per_tick: f32,
@@ -43,11 +44,13 @@ impl CrankTracker {
     }
 }
 
+#[derive(Debug)]
 struct MachineCrank {
     images: Vec<Bitmap>,
     sprite: Sprite,
     pos: f32,
     crank_tracker: CrankTracker,
+    auto_crank: AutoTicker,
     prev_crank_angle: f32,
 }
 
@@ -72,6 +75,7 @@ impl MachineCrank {
             sprite,
             pos: 0.0,
             crank_tracker: CrankTracker::new(360.0),
+            auto_crank: AutoTicker::new(40.0),
             prev_crank_angle: System::get().get_crank_angle().unwrap_or(0.0),
         }
     }
@@ -80,14 +84,19 @@ impl MachineCrank {
         // 360.0 / 14.0 = 25.71428571428571
         let macro_idx = (self.pos / (360.0 / 28.0)) as usize;
         if macro_idx >= 14 {
-            27 - macro_idx
+            if macro_idx >= 27 {
+                0
+            } else {
+                27 - macro_idx
+            }
         } else {
             macro_idx
         }
     }
 
-    pub fn update(&mut self) -> bool {
+    pub fn update(&mut self, parameters: &CoreParameters) -> bool {
         let system = System::get();
+        let angle_from_autocrank = self.auto_crank.poll(parameters.auto_crank_level);
         // There is extra paranoia here because in theory "get_crank_change" resets the value after
         // each call, but I've observed this being not true, as least in the simulator
         // As a result we monitor the crank angle and only update if it has changed
@@ -95,22 +104,52 @@ impl MachineCrank {
         let crank_angle = system.get_crank_angle().unwrap_or(0.0);
         let angle_changed = crank_angle != self.prev_crank_angle;
         self.prev_crank_angle = crank_angle;
-        if angle_changed {
-            System::log_to_console(&format!("Crank change: {}", crank_change));
-            self.pos = helpers::wrap(self.pos + crank_change, 0.0, 360.0);
+        let crank_move = match (angle_changed, angle_from_autocrank) {
+            (true, _) => Some(crank_change),
+            (false, 0.0) => None,
+            (false, _) => Some(angle_from_autocrank),
+        };
+        if let Some(crank_by_angle) = crank_move {
+            self.pos = helpers::wrap(self.pos + crank_by_angle, 0.0, 360.0);
             let idx = self.get_idx();
             self.sprite
                 .set_image(self.images[idx].clone(), LCDBitmapFlip::kBitmapUnflipped)
                 .unwrap();
-            self.crank_tracker.update(crank_change)
+            self.crank_tracker.update(crank_by_angle)
         } else {
             false
         }
     }
 }
 
+#[derive(Debug)]
+pub struct Gearbox {
+    sprite: Sprite,
+    visible: bool,
+}
+
+impl Gearbox {
+    fn new(x: f32, y: f32) -> Self {
+        let mut sprite = load_sprite_at("res/crank-gearbox", x, y, None);
+        sprite.set_visible(false).unwrap();
+        Self {
+            sprite,
+            visible: false,
+        }
+    }
+
+    fn set_visible(&mut self, visible: bool) {
+        if self.visible != visible {
+            self.sprite.set_visible(visible).unwrap();
+            self.visible = visible;
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct PastaMachineState {
     crank: MachineCrank,
+    gearbox: Gearbox,
     body_sprite: Sprite,
     top_dough: IncrSprite,
     bottom_dough: IncrSprite,
@@ -134,7 +173,9 @@ impl PastaMachineState {
             sprite
         };
         let crank_x = x + 38.0 + 11.0;
+        let gear_x = x - 38.0 - 5.0;
         let crank = MachineCrank::new((crank_x, y - 15.0));
+        let gearbox = Gearbox::new(gear_x, y - 15.0);
         let top_dough = IncrSprite::new(
             (x - 1.0, y - 33.0),
             "res/roller_dough/roller_dough",
@@ -150,6 +191,7 @@ impl PastaMachineState {
         let mut dough_store = DoughStore::new((280.0, 160.0));
         Self {
             crank,
+            gearbox,
             body_sprite,
             top_dough,
             bottom_dough,
@@ -162,7 +204,7 @@ impl PastaMachineState {
         parameters: &CoreParameters,
         events: &mut AudioEventChannel,
     ) {
-        let crank_ticked = self.crank.update();
+        let crank_ticked = self.crank.update(parameters);
         if crank_ticked {
             System::log_to_console("Crank ticked");
             let top_dough_pre = self.top_dough.get_idx();
@@ -185,7 +227,8 @@ impl PastaMachineState {
             }
         }
     }
-    pub fn update(&mut self, state: &mut CoreState) {
+    pub fn update(&mut self, state: &mut CoreState, parameters: &CoreParameters) {
         self.dough_store.update(state);
+        self.gearbox.set_visible(parameters.auto_crank_level > 0)
     }
 }
