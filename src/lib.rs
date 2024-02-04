@@ -212,9 +212,6 @@ impl GameState {
         }
 
         self.info_overlay.borrow_mut().update();
-
-        System::get().draw_fps(0, 0)?;
-
         Ok(())
     }
 }
