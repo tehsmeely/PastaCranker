@@ -1,5 +1,12 @@
 [[target]]
 name = "PastaCranker"
+    [target.metadata]
+    name = "PastaCranker"
+    author = "Tehsmeely"
+    bundle_id = "com.tehsmeely.pastacranker"
+    version = "0.1.0"
+    build_number = 1
+
 assets = [
     "res/crank/crank0.png",
     "res/crank/crank1.png",
