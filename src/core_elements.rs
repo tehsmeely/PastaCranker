@@ -15,6 +15,13 @@ use euclid::Size2D;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum GameMode {
+    LevelSelect,
+    Game,
+    Menu,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 /// Core parameters that may be changed/upgraded and impact how other things behave
 pub struct CoreParameters {
     /// How much each knead tick increases the fill bar

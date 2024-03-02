@@ -24,6 +24,7 @@ mod audio_events;
 mod bottom_bar;
 mod core_elements;
 mod dough_store;
+mod engine;
 mod fill_bar;
 mod flour_pile;
 mod game_value;
@@ -37,6 +38,7 @@ mod save;
 use crate::audio_events::{AudioEventChannel, SoundStore};
 use crate::bottom_bar::BottomBar;
 use crate::core_elements::{CoreParameters, CoreState, Timer};
+use crate::engine::engine::Engine;
 use crate::flour_pile::FlourPile;
 use crate::game_value::GameUInt;
 use crate::info_overlay::InfoOverlay;
@@ -128,6 +130,7 @@ impl GameState {
             menu.init_counts(&counts);
         }
         let sound_store = SoundStore::new()?;
+        /*
         Ok(Self {
             parameters,
             state,
@@ -142,7 +145,21 @@ impl GameState {
             info_overlay,
             system_menu_items,
         })
+        */
+        let mut engine = Engine::new(state, parameters);
+        engine.add_component(
+            EngineComponent::PastaMachine,
+            Box::new(PastaMachineState::new()),
+        );
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum EngineComponent {
+    PastaMachine,
+    BottomBar,
+    FlourPile,
+    Menu,
 }
 
 #[derive(Debug)]
